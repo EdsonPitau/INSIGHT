@@ -1,10 +1,11 @@
-const CACHE_NAME = "insight-cache-v2";
+const CACHE_NAME = "insight-cache-v5";
 
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./logo.png",
   "./manifest.json",
   "./react.production.min.js",
   "./react-dom.production.min.js",
