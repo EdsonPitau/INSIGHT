@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "io.github.edsonpitau.twa",
+    "sha256_cert_fingerprints": [
+      "D9:56:DB:C9:63:50:86:5D:19:30:00:87:A9:AA:CA:44:7F:77:0F:EE:63:7F:AD:A2:98:BD:A1:5C:51:20:EE:2E"
+    ]
+  }
+}]
