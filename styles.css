@@ -437,6 +437,11 @@ body {
   line-height: 1.2;
   color: #1c2c5c;
 }
+.card-word-hidden {
+  font-size: 56px;
+  color: #c8d0e8;
+  letter-spacing: 4px;
+}
 
 .time-up-banner {
   text-align: center;

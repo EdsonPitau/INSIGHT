@@ -813,6 +813,32 @@ function GameScreen({ config, onExit }) {
   const [activeTeam, setActiveTeam] = useState("a");
 
   const intervalRef = useRef(null);
+  const audioCtxRef = useRef(null);
+
+  // Toca um beep sintético via Web Audio API (funciona offline, sem arquivo externo)
+  const playBeep = useCallback(() => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      // Três bipes curtos descendentes
+      [0, 0.18, 0.36].forEach((delay, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880 - i * 220;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.4, ctx.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.15);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.15);
+      });
+    } catch (e) {
+      // Web Audio não disponível, ignora silenciosamente
+    }
+  }, []);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -839,6 +865,11 @@ function GameScreen({ config, onExit }) {
       });
     }, 1000);
   }, [clearTimer]);
+
+  // Dispara o beep quando o tempo esgota
+  useEffect(() => {
+    if (finished) playBeep();
+  }, [finished]);
 
   const resetRound = useCallback(() => {
     clearTimer();
@@ -945,7 +976,9 @@ function GameScreen({ config, onExit }) {
             diffMeta.label
           )
         ),
-        h("p", { className: "card-word" }, current.word)
+        h("p", { className: `card-word ${!running && !finished ? "card-word-hidden" : ""}` },
+          !running && !finished ? "?" : current.word
+        )
       )
     ),
     finished &&
