@@ -667,6 +667,7 @@ const h = React.createElement;
 // ---------------------------------------------------------------------------
 
 function SetupScreen({ onStart }) {
+  const [mode, setMode] = useState("equipes"); // "equipes" | "individual"
   const [categories, setCategories] = useState({
     palavras: true,
     objetos: true,
@@ -697,6 +698,31 @@ function SetupScreen({ onStart }) {
       { className: "setup-header" },
       h("img", { className: "title-logo", src: "./logo.png", alt: "INSIGHT" }),
       h("p", { className: "subtitle" }, "Desenhe. Adivinhe. Marque pontos.")
+    ),
+    h(
+      "div",
+      { className: "setup-section" },
+      h("h2", { className: "section-label" }, "Modo de jogo"),
+      h(
+        "div",
+        { className: "duration-toggle" },
+        h(
+          "button",
+          {
+            className: `duration-btn ${mode === "equipes" ? "duration-active" : ""}`,
+            onClick: () => setMode("equipes"),
+          },
+          "⚔ Equipes"
+        ),
+        h(
+          "button",
+          {
+            className: `duration-btn ${mode === "individual" ? "duration-active" : ""}`,
+            onClick: () => setMode("individual"),
+          },
+          "★ Individual"
+        )
+      )
     ),
     h(
       "div",
@@ -733,9 +759,7 @@ function SetupScreen({ onStart }) {
               key,
               className: `chip diff-chip ${difficulties[key] ? "chip-active" : ""}`,
               "data-diff": key,
-              style: difficulties[key]
-                ? { borderColor: meta.color }
-                : undefined,
+              style: difficulties[key] ? { borderColor: meta.color } : undefined,
               onClick: () => toggleDifficulty(key),
             },
             meta.label
@@ -773,16 +797,91 @@ function SetupScreen({ onStart }) {
       {
         className: "primary-btn",
         disabled: !canStart,
-        onClick: () => onStart({ selectedCategories, selectedDifficulties, duration }),
+        onClick: () => onStart({ selectedCategories, selectedDifficulties, duration, mode }),
       },
       "Começar a jogar"
     ),
     !canStart &&
-      h(
-        "p",
-        { className: "hint-text" },
-        "Selecione ao menos uma categoria e uma dificuldade."
-      )
+      h("p", { className: "hint-text" }, "Selecione ao menos uma categoria e uma dificuldade.")
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PLAYERS SCREEN (modo individual)
+// ---------------------------------------------------------------------------
+
+function PlayersScreen({ config, onStart, onBack }) {
+  const [players, setPlayers] = useState(["", "", ""]);
+  const [inputting, setInputting] = useState(null);
+
+  const updatePlayer = (i, val) => {
+    const next = [...players];
+    next[i] = val;
+    setPlayers(next);
+  };
+
+  const addPlayer = () => {
+    if (players.length < 8) setPlayers([...players, ""]);
+  };
+
+  const removePlayer = (i) => {
+    if (players.length > 2) setPlayers(players.filter((_, idx) => idx !== i));
+  };
+
+  const validPlayers = players.map((p) => p.trim()).filter(Boolean);
+  const canStart = validPlayers.length >= 2;
+
+  return h(
+    "div",
+    { className: "screen setup-screen" },
+    h(
+      "div",
+      { className: "setup-header" },
+      h("img", { className: "title-logo", src: "./logo.png", alt: "INSIGHT" }),
+      h("p", { className: "subtitle" }, "Modo Individual")
+    ),
+    h(
+      "div",
+      { className: "setup-section" },
+      h("h2", { className: "section-label" }, "Jogadores (2–8)"),
+      players.map((name, i) =>
+        h(
+          "div",
+          { key: i, className: "player-row" },
+          h("input", {
+            className: "player-input",
+            type: "text",
+            placeholder: `Jogador ${i + 1}`,
+            value: name,
+            maxLength: 14,
+            onInput: (e) => updatePlayer(i, e.target.value),
+          }),
+          players.length > 2 &&
+            h(
+              "button",
+              { className: "player-remove-btn", onClick: () => removePlayer(i) },
+              "✕"
+            )
+        )
+      ),
+      players.length < 8 &&
+        h(
+          "button",
+          { className: "add-player-btn", onClick: addPlayer },
+          "+ Adicionar jogador"
+        )
+    ),
+    h(
+      "button",
+      {
+        className: "primary-btn",
+        disabled: !canStart,
+        onClick: () => onStart({ ...config, players: validPlayers }),
+      },
+      "Iniciar"
+    ),
+    !canStart && h("p", { className: "hint-text" }, "Preencha ao menos 2 jogadores."),
+    h("button", { className: "ghost-btn", onClick: onBack }, "← Voltar")
   );
 }
 
@@ -809,8 +908,19 @@ function GameScreen({ config, onExit }) {
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
   const [roundResult, setRoundResult] = useState({ acertos: 0, pulos: 0 });
+  const isIndividual = config.mode === "individual";
+  const players = config.players || [];
+
+  // Estado equipes
   const [teamScores, setTeamScores] = useState({ a: 0, b: 0 });
   const [activeTeam, setActiveTeam] = useState("a");
+
+  // Estado individual
+  const [playerScores, setPlayerScores] = useState(() =>
+    Object.fromEntries(players.map((p) => [p, 0]))
+  );
+  const [drawerIndex, setDrawerIndex] = useState(0);
+  const [showWhoGuessed, setShowWhoGuessed] = useState(false); // tela de seleção de quem acertou
 
   const intervalRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -879,19 +989,43 @@ function GameScreen({ config, onExit }) {
   }, [clearTimer, config.duration]);
 
   const nextCard = useCallback(
-    (didScore) => {
+    (didScore, guesser) => {
       setCurrent(drawNext());
-      if (didScore === "acerto") {
-        setRoundResult((s) => ({ ...s, acertos: s.acertos + 1 }));
-        setTeamScores((s) => ({ ...s, [activeTeam]: s[activeTeam] + 1 }));
-      } else if (didScore === "pulo") {
-        setRoundResult((s) => ({ ...s, pulos: s.pulos + 1 }));
+      if (isIndividual) {
+        if (didScore === "acerto" && guesser != null) {
+          const drawer = players[drawerIndex];
+          setPlayerScores((s) => {
+            const next = { ...s };
+            next[drawer] = (next[drawer] || 0) + 1;
+            if (guesser !== drawer) next[guesser] = (next[guesser] || 0) + 1;
+            return next;
+          });
+        }
+        setDrawerIndex((i) => (i + 1) % players.length);
+        setShowWhoGuessed(false);
+      } else {
+        if (didScore === "acerto") {
+          setRoundResult((s) => ({ ...s, acertos: s.acertos + 1 }));
+          setTeamScores((s) => ({ ...s, [activeTeam]: s[activeTeam] + 1 }));
+        } else if (didScore === "pulo") {
+          setRoundResult((s) => ({ ...s, pulos: s.pulos + 1 }));
+        }
+        setActiveTeam((t) => (t === "a" ? "b" : "a"));
       }
-      setActiveTeam((t) => (t === "a" ? "b" : "a"));
       resetRound();
     },
-    [resetRound, activeTeam]
+    [resetRound, activeTeam, isIndividual, players, drawerIndex]
   );
+
+  const handleAcertou = () => {
+    if (isIndividual) {
+      clearTimer();
+      setRunning(false);
+      setShowWhoGuessed(true);
+    } else {
+      nextCard("acerto");
+    }
+  };
 
   const skipCard = () => {
     setCurrent(drawNext());
@@ -900,6 +1034,39 @@ function GameScreen({ config, onExit }) {
   const pct = (timeLeft / config.duration) * 100;
   const diffMeta = DIFFICULTY_META[current.difficulty];
   const catMeta = CATEGORY_META[current.category];
+  const drawerName = isIndividual ? players[drawerIndex] : null;
+
+  // Tela de "quem acertou?" no modo individual
+  if (showWhoGuessed) {
+    return h(
+      "div",
+      { className: "screen game-screen" },
+      h(
+        "div",
+        { className: "who-guessed-wrap" },
+        h("p", { className: "who-guessed-title" }, `"${current.word}"`),
+        h("p", { className: "who-guessed-sub" }, "Quem acertou?"),
+        h(
+          "div",
+          { className: "who-guessed-grid" },
+          players
+            .filter((p) => p !== drawerName)
+            .map((p) =>
+              h(
+                "button",
+                { key: p, className: "who-guessed-btn", onClick: () => nextCard("acerto", p) },
+                p
+              )
+            )
+        ),
+          h(
+          "button",
+          { className: "result-btn result-pulo", style: { width: "100%", marginTop: 8 }, onClick: () => nextCard("pulo") },
+          "Ninguém acertou"
+        )
+      )
+    );
+  }
 
   return h(
     "div",
@@ -907,33 +1074,42 @@ function GameScreen({ config, onExit }) {
     h(
       "div",
       { className: "game-topbar" },
-      h(
-        "button",
-        { className: "icon-btn", onClick: onExit, "aria-label": "Voltar" },
-        "←"
-      ),
-      h(
-        "div",
-        { className: "team-scoreboard" },
-        h(
-          "button",
-          {
-            className: `team-pill team-a ${activeTeam === "a" ? "team-active" : ""}`,
-            onClick: () => setActiveTeam("a"),
-          },
-          h("span", { className: "team-label" }, "Equipe A"),
-          h("span", { className: "team-score" }, teamScores.a)
-        ),
-        h(
-          "button",
-          {
-            className: `team-pill team-b ${activeTeam === "b" ? "team-active" : ""}`,
-            onClick: () => setActiveTeam("b"),
-          },
-          h("span", { className: "team-label" }, "Equipe B"),
-          h("span", { className: "team-score" }, teamScores.b)
-        )
-      )
+      h("button", { className: "icon-btn", onClick: onExit, "aria-label": "Voltar" }, "←"),
+      isIndividual
+        ? h(
+            "div",
+            { className: "individual-scoreboard" },
+            players.map((p, i) =>
+              h(
+                "div",
+                { key: p, className: `ind-pill ${i === drawerIndex ? "ind-pill-active" : ""}` },
+                h("span", { className: "ind-name" }, p),
+                h("span", { className: "ind-score" }, playerScores[p] || 0)
+              )
+            )
+          )
+        : h(
+            "div",
+            { className: "team-scoreboard" },
+            h(
+              "button",
+              {
+                className: `team-pill team-a ${activeTeam === "a" ? "team-active" : ""}`,
+                onClick: () => setActiveTeam("a"),
+              },
+              h("span", { className: "team-label" }, "Equipe A"),
+              h("span", { className: "team-score" }, teamScores.a)
+            ),
+            h(
+              "button",
+              {
+                className: `team-pill team-b ${activeTeam === "b" ? "team-active" : ""}`,
+                onClick: () => setActiveTeam("b"),
+              },
+              h("span", { className: "team-label" }, "Equipe B"),
+              h("span", { className: "team-score" }, teamScores.b)
+            )
+          )
     ),
     h(
       "div",
@@ -983,11 +1159,12 @@ function GameScreen({ config, onExit }) {
     ),
     finished &&
       h("p", { className: "time-up-banner" }, "Tempo esgotado — registre o resultado"),
+    isIndividual && !finished && !showWhoGuessed &&
+      h("p", { className: "drawer-banner" }, `✏️ ${drawerName} está desenhando`),
     h(
       "div",
       { className: "game-controls" },
-      !running &&
-        !finished &&
+      !running && !finished &&
         h("button", { className: "primary-btn", onClick: startTimer }, "Iniciar rodada"),
       running &&
         h(
@@ -996,10 +1173,7 @@ function GameScreen({ config, onExit }) {
           h("button", { className: "secondary-btn", onClick: skipCard }, "Pular carta"),
           h(
             "button",
-            {
-              className: "result-btn result-acerto",
-              onClick: () => nextCard("acerto"),
-            },
+            { className: "result-btn result-acerto", onClick: handleAcertou },
             "Acertou!"
           )
         ),
@@ -1009,24 +1183,16 @@ function GameScreen({ config, onExit }) {
           { className: "result-row" },
           h(
             "button",
-            {
-              className: "result-btn result-pulo",
-              onClick: () => nextCard("pulo"),
-            },
+            { className: "result-btn result-pulo", onClick: () => nextCard("pulo") },
             "Não acertou"
           ),
           h(
             "button",
-            {
-              className: "result-btn result-acerto",
-              onClick: () => nextCard("acerto"),
-            },
+            { className: "result-btn result-acerto", onClick: handleAcertou },
             "Acertou!"
           )
         ),
-      !running &&
-        !finished &&
-        roundResult.acertos + roundResult.pulos > 0 &&
+      !running && !finished && roundResult.acertos + roundResult.pulos > 0 &&
         h("button", { className: "ghost-btn", onClick: skipCard }, "Trocar carta")
     )
   );
@@ -1037,14 +1203,38 @@ function GameScreen({ config, onExit }) {
 // ---------------------------------------------------------------------------
 
 function InsightApp() {
+  const [screen, setScreen] = useState("setup"); // "setup" | "players" | "game"
   const [config, setConfig] = useState(null);
+
+  const handleSetupStart = (cfg) => {
+    setConfig(cfg);
+    if (cfg.mode === "individual") {
+      setScreen("players");
+    } else {
+      setScreen("game");
+    }
+  };
+
+  const handlePlayersStart = (cfg) => {
+    setConfig(cfg);
+    setScreen("game");
+  };
+
+  const handleExit = () => {
+    setConfig(null);
+    setScreen("setup");
+  };
 
   return h(
     "div",
     { className: "app-root" },
-    config
-      ? h(GameScreen, { config, onExit: () => setConfig(null) })
-      : h(SetupScreen, { onStart: setConfig })
+    screen === "setup" && h(SetupScreen, { onStart: handleSetupStart }),
+    screen === "players" && h(PlayersScreen, {
+      config,
+      onStart: handlePlayersStart,
+      onBack: () => setScreen("setup"),
+    }),
+    screen === "game" && h(GameScreen, { config, onExit: handleExit })
   );
 }
 

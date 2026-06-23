@@ -531,3 +531,177 @@ body {
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------- */
+/* MODO INDIVIDUAL                                                   */
+/* ---------------------------------------------------------------- */
+
+/* Placar individual no topbar */
+.individual-scoreboard {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  margin-left: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.individual-scoreboard::-webkit-scrollbar { display: none; }
+
+.ind-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #1c3b85 0%, #0e2257 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    inset 0 -2px 0 rgba(0,0,0,0.3),
+    0 2px 0 #050f2c;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.ind-pill-active {
+  background: linear-gradient(180deg, #ffd866 0%, #f0a92e 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    inset 0 -2px 0 rgba(110,70,0,0.35),
+    0 2px 0 #a8650f,
+    0 0 12px rgba(255, 216, 102, 0.5);
+}
+.ind-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9fb4ed;
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+.ind-score {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.ind-pill-active .ind-name { color: #6b4a00; }
+.ind-pill-active .ind-score { color: #3a2000; }
+
+/* Banner do desenhista */
+.drawer-banner {
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffd866;
+  margin: 0 0 14px 0;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.3);
+}
+
+/* Tela "quem acertou?" */
+.who-guessed-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  gap: 20px;
+}
+.who-guessed-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  text-align: center;
+  margin: 0;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.3);
+}
+.who-guessed-sub {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: #bcd2ff;
+  margin: 0;
+  text-align: center;
+}
+.who-guessed-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+}
+.who-guessed-btn {
+  border: none;
+  border-radius: 16px;
+  padding: 16px 22px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  background: linear-gradient(180deg, #4f8fef 0%, #2452c9 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,0.4),
+    inset 0 -4px 0 rgba(10,30,90,0.5),
+    0 4px 0 #16266b,
+    0 0 0 3px #ffd866,
+    0 6px 12px rgba(0,0,0,0.35);
+  transition: transform 0.08s ease;
+  min-width: 110px;
+}
+.who-guessed-btn:active { transform: translateY(3px); }
+
+/* Tela de cadastro de jogadores */
+.player-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.player-input {
+  flex: 1;
+  background: #ffffff;
+  border: 1.5px solid #d8d4cb;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: #1c1c1c;
+  outline: none;
+}
+.player-input:focus {
+  border-color: #ffd866;
+  box-shadow: 0 0 0 3px rgba(255, 216, 102, 0.35);
+}
+.player-remove-btn {
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+  color: #cfdcff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.add-player-btn {
+  width: 100%;
+  background: transparent;
+  border: 1.5px dashed rgba(255,255,255,0.3);
+  border-radius: 12px;
+  padding: 13px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: #9fb4ed;
+  cursor: pointer;
+  margin-top: 4px;
+}
