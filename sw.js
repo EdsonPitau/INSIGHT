@@ -1,4 +1,4 @@
-const CACHE_NAME = "insight-cache-v7";
+const CACHE_NAME = "insight-cache-v8";
 
 const ASSETS = [
   "./",

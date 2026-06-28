@@ -924,26 +924,29 @@ function GameScreen({ config, onExit }) {
 
   const intervalRef = useRef(null);
   const audioCtxRef = useRef(null);
+  const startTimeRef = useRef(null); // timestamp real do início da rodada
 
-  // Toca um beep sintético via Web Audio API (funciona offline, sem arquivo externo)
+  // Beep mais alto, longo e marcante usando Web Audio API
   const playBeep = useCallback(() => {
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
       }
       const ctx = audioCtxRef.current;
-      // Três bipes curtos descendentes
-      [0, 0.18, 0.36].forEach((delay, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 880 - i * 220;
-        osc.type = 'sine';
-        gain.gain.setValueAtTime(0.4, ctx.currentTime + delay);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.15);
-        osc.start(ctx.currentTime + delay);
-        osc.stop(ctx.currentTime + delay + 0.15);
+      // 3 bipes descendentes, cada um com oscilador duplo (fundamental + harmônico) pra soar mais cheio
+      [[0, 880, 660], [0.35, 660, 495], [0.70, 440, 330]].forEach(([delay, f1, f2]) => {
+        [f1, f2].forEach((freq, hi) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = freq;
+          osc.type = hi === 0 ? 'square' : 'sine';
+          gain.gain.setValueAtTime(hi === 0 ? 0.6 : 0.3, ctx.currentTime + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.28);
+          osc.start(ctx.currentTime + delay);
+          osc.stop(ctx.currentTime + delay + 0.28);
+        });
       });
     } catch (e) {
       // Web Audio não disponível, ignora silenciosamente
@@ -963,18 +966,21 @@ function GameScreen({ config, onExit }) {
     setRunning(true);
     setFinished(false);
     clearTimer();
+    // Guarda o timestamp real de início — o timer calcula por diferença de tempo real,
+    // não por ticks, então não pausa quando a tela apaga ou a aba vai pro background.
+    startTimeRef.current = Date.now();
+    const totalMs = config.duration * 1000;
     intervalRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          clearTimer();
-          setRunning(false);
-          setFinished(true);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-  }, [clearTimer]);
+      const elapsed = Date.now() - startTimeRef.current;
+      const remaining = Math.max(0, Math.ceil((totalMs - elapsed) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        clearTimer();
+        setRunning(false);
+        setFinished(true);
+      }
+    }, 250); // verifica 4x por segundo — responsivo mesmo após throttling
+  }, [clearTimer, config.duration]);
 
   // Dispara o beep quando o tempo esgota
   useEffect(() => {
